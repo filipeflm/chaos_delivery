@@ -78,13 +78,6 @@ export interface Pedestrian {
   variant: number;  // 0-3 visual variant
 }
 
-export interface Puddle {
-  x: number;
-  y: number;
-  radius: number;
-  animTimer: number;
-}
-
 export type EffectKind = 'particle' | 'floatText' | 'impact' | 'delivery';
 
 export interface Particle {
@@ -138,7 +131,6 @@ export interface GameState {
   deliveryZone: Zone;
   cars: Car[];
   pedestrians: Pedestrian[];
-  puddles: Puddle[];
   effects: Effects;
   score: number;
   combo: number;

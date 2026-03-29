@@ -34,6 +34,17 @@ html, body {
   background: var(--bg);
 }
 
+/* ─── Game overlay — espelha as dimensões do canvas ───────────────────────── */
+.game-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* width/height definidos por JS para coincidir com o canvas escalado */
+  pointer-events: none;
+  overflow: hidden;
+}
+
 /* ─── Game container ───────────────────────────────────────────────────────── */
 .game-container {
   position: relative;
@@ -262,7 +273,7 @@ html, body {
 /* ─── HUD ──────────────────────────────────────────────────────────────────── */
 .hud {
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: 0; left: 0; right: 0; bottom: 0; /* full overlay height so action-prompt bottom works */
   pointer-events: none;
   z-index: 10;
 }
@@ -325,6 +336,21 @@ html, body {
   transition: background 0.15s;
 }
 .hud-pause-btn:hover { background: rgba(255,255,255,0.15); }
+
+.hud-mute-btn {
+  margin-left: 6px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  pointer-events: all;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.hud-mute-btn:hover { background: rgba(255,255,255,0.15); }
 
 /* Timer bar */
 .hud-timer-row {
@@ -433,7 +459,7 @@ html, body {
 /* Action prompt */
 .action-prompt {
   position: absolute;
-  bottom: 0;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(15,23,42,0.9);
@@ -446,6 +472,7 @@ html, body {
   white-space: nowrap;
   animation: promptBounce 0.6s ease;
   pointer-events: none;
+  z-index: 12;
 }
 
 @keyframes promptBounce {
@@ -530,7 +557,11 @@ html, body {
   position: absolute;
   bottom: 0; left: 0; right: 0;
   display: flex; justify-content: space-between; align-items: flex-end;
-  padding: 16px 24px 24px;
+  /* Safe area insets for iPhones with notch/home indicator in landscape */
+  padding: 16px
+    max(24px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom))
+    max(24px, env(safe-area-inset-left));
   pointer-events: none;
   z-index: 15;
 }
@@ -841,4 +872,81 @@ html, body {
 @keyframes popIn {
   from { transform: scale(0.3); opacity: 0; }
   to   { transform: scale(1);   opacity: 1; }
+}
+
+/* ─── Pointer-events: overlays inside .game-overlay need pointer-events ───── */
+.overlay-screen,
+.gameover-screen,
+.overlay-card,
+.gameover-card {
+  pointer-events: all;
+}
+
+/* ─── Rotate device prompt (portrait + touch = mobile portrait) ────────────── */
+.rotate-prompt {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: var(--bg);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  padding: 32px;
+  color: var(--text);
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+  .rotate-prompt { display: flex; }
+}
+
+/* ─── Mobile optimizations ─────────────────────────────────────────────────── */
+@media (pointer: coarse) {
+  /* Remove expensive backdrop-filter to improve FPS on mobile GPU */
+  .hud-bar {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(15, 23, 42, 0.96);
+  }
+  .hud-timer-row {
+    background: rgba(15, 23, 42, 0.92);
+  }
+  .hud-stage-row {
+    background: rgba(15, 23, 42, 0.92);
+  }
+
+  /* Bigger tap targets for HUD buttons */
+  .hud-pause-btn,
+  .hud-mute-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  /* Action prompt higher up to clear the touch controls */
+  .action-prompt {
+    bottom: 150px;
+  }
+
+  /* Slightly bigger joystick for easier touch */
+  .joystick-area {
+    width: 110px;
+    height: 110px;
+  }
+
+  /* Bigger action button */
+  .action-btn {
+    width: 80px;
+    height: 80px;
+    font-size: 22px;
+  }
+
+  /* Canvas: hint browser this layer is composited for smoother updates */
+  .game-canvas {
+    will-change: contents;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
 }

@@ -88,26 +88,37 @@ export default function TouchControls({ inputRef }: TouchControlsProps) {
     const btn = actionRef.current;
     if (!btn) return;
 
+    let actionTouchId: number | null = null;
+
     function onDown(e: TouchEvent) {
       e.preventDefault();
+      const t = e.changedTouches[0];
+      actionTouchId = t.identifier;
       inputRef.current.action = true;
       inputRef.current.actionJustPressed = true;
       btn!.classList.add('pressed');
     }
+
+    // Listen on window so release is captured even if finger slides off the button
     function onUp(e: TouchEvent) {
       e.preventDefault();
-      inputRef.current.action = false;
-      btn!.classList.remove('pressed');
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === actionTouchId) {
+          actionTouchId = null;
+          inputRef.current.action = false;
+          btn!.classList.remove('pressed');
+        }
+      }
     }
 
     btn.addEventListener('touchstart', onDown, { passive: false });
-    btn.addEventListener('touchend', onUp, { passive: false });
-    btn.addEventListener('touchcancel', onUp, { passive: false });
+    window.addEventListener('touchend', onUp, { passive: false });
+    window.addEventListener('touchcancel', onUp, { passive: false });
 
     return () => {
       btn.removeEventListener('touchstart', onDown);
-      btn.removeEventListener('touchend', onUp);
-      btn.removeEventListener('touchcancel', onUp);
+      window.removeEventListener('touchend', onUp);
+      window.removeEventListener('touchcancel', onUp);
     };
   }, [inputRef]);
 

@@ -3,6 +3,7 @@ import type { InputState, ReactiveGameState } from '../game/types';
 import { GameEngine } from '../game/engine';
 import { renderGame } from '../game/renderer';
 import { VIRTUAL_W, VIRTUAL_H, DIFFICULTY_STAGES } from '../game/constants';
+import { audioManager } from '../game/audio';
 
 const DEFAULT_REACTIVE: ReactiveGameState = {
   phase: 'playing',
@@ -34,6 +35,7 @@ export function useGameEngine(
   });
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
+  const musicStartedRef = useRef<boolean>(false);
 
   const [reactive, setReactive] = useState<ReactiveGameState>(DEFAULT_REACTIVE);
 
@@ -72,6 +74,13 @@ export function useGameEngine(
       const input = inputRef.current;
       engineRef.current.update(dt, input);
       input.actionJustPressed = false;
+
+      // Start music on first real frame (after user interaction unlocks AudioContext)
+      if (!musicStartedRef.current) {
+        musicStartedRef.current = true;
+        audioManager.startMusic();
+        audioManager.setMusicIntensity(0);
+      }
 
       const scale = Math.min(canvas.width / VIRTUAL_W, canvas.height / VIRTUAL_H);
       ctx.clearRect(0, 0, canvas.width, canvas.height);

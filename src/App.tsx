@@ -26,6 +26,7 @@ export default function App() {
   const [screen, setScreen] = useState<AppScreen>('menu');
   const [isMobile] = useState(detectMobile);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const activeSkinRef = useRef<string>('classic');
   const prevScreenRef = useRef<AppScreen>('menu');
 
@@ -46,13 +47,27 @@ export default function App() {
       if (!canvas) return;
       canvas.width = VIRTUAL_W;
       canvas.height = VIRTUAL_H;
-      const scale = Math.min(window.innerWidth / VIRTUAL_W, window.innerHeight / VIRTUAL_H);
-      canvas.style.width = `${VIRTUAL_W * scale}px`;
-      canvas.style.height = `${VIRTUAL_H * scale}px`;
+      // Use visualViewport when available for accurate dimensions (hides/shows mobile chrome)
+      const vw = window.visualViewport?.width ?? window.innerWidth;
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      const scale = Math.min(vw / VIRTUAL_W, vh / VIRTUAL_H);
+      const cw = VIRTUAL_W * scale;
+      const ch = VIRTUAL_H * scale;
+      canvas.style.width = `${cw}px`;
+      canvas.style.height = `${ch}px`;
+      // Keep overlay in sync so HUD/controls align exactly with the canvas
+      if (overlayRef.current) {
+        overlayRef.current.style.width = `${cw}px`;
+        overlayRef.current.style.height = `${ch}px`;
+      }
     }
     resize();
     window.addEventListener('resize', resize);
-    return () => window.removeEventListener('resize', resize);
+    window.visualViewport?.addEventListener('resize', resize);
+    return () => {
+      window.removeEventListener('resize', resize);
+      window.visualViewport?.removeEventListener('resize', resize);
+    };
   }, []);
 
   // Pause / resume on Escape
@@ -134,32 +149,42 @@ export default function App() {
       <div className="game-container" style={{ display: inGame ? 'flex' : 'none' }}>
         <canvas ref={canvasRef} className="game-canvas" width={VIRTUAL_W} height={VIRTUAL_H} />
 
-        {inGame && reactive.phase !== 'gameover' && (
-          <HUD state={reactive} onPause={pause} isMobile={isMobile} />
-        )}
+        {/* Overlay div sized to match the canvas — HUD/controls align with the game world */}
+        <div ref={overlayRef} className="game-overlay">
+          {inGame && reactive.phase !== 'gameover' && (
+            <HUD state={reactive} onPause={pause} isMobile={isMobile} />
+          )}
 
-        {inGame && isMobile && reactive.phase === 'playing' && (
-          <TouchControls inputRef={inputRef} />
-        )}
+          {inGame && isMobile && reactive.phase === 'playing' && (
+            <TouchControls inputRef={inputRef} />
+          )}
 
-        {inGame && reactive.phase === 'paused' && (
-          <PauseMenu onResume={resume} onRestart={handleRestart} onMainMenu={handleMainMenu} />
-        )}
+          {inGame && reactive.phase === 'paused' && (
+            <PauseMenu onResume={resume} onRestart={handleRestart} onMainMenu={handleMainMenu} />
+          )}
 
-        {inGame && reactive.phase === 'gameover' && (
-          <GameOverScreen
-            score={reactive.score}
-            deliveries={reactive.deliveries}
-            bestCombo={reactive.bestCombo}
-            timeElapsed={reactive.timeElapsed}
-            bestStageIdx={reactive.currentStageIdx}
-            trophiesEarned={trophiesEarned}
-            isNewRecord={isNewRecord}
-            onRestart={handleRestart}
-            onMenu={handleMainMenu}
-            onShop={handleShop}
-          />
-        )}
+          {inGame && reactive.phase === 'gameover' && (
+            <GameOverScreen
+              score={reactive.score}
+              deliveries={reactive.deliveries}
+              bestCombo={reactive.bestCombo}
+              timeElapsed={reactive.timeElapsed}
+              bestStageIdx={reactive.currentStageIdx}
+              trophiesEarned={trophiesEarned}
+              isNewRecord={isNewRecord}
+              onRestart={handleRestart}
+              onMenu={handleMainMenu}
+              onShop={handleShop}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Portrait-mode prompt (CSS shows/hides via media query) */}
+      <div className="rotate-prompt">
+        <span style={{ fontSize: 56 }}>🔄</span>
+        <p style={{ fontSize: 18, fontWeight: 800 }}>Gire o dispositivo</p>
+        <p style={{ fontSize: 13, opacity: 0.55 }}>Este jogo é melhor em modo paisagem</p>
       </div>
     </div>
   );

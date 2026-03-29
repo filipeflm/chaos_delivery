@@ -40,8 +40,7 @@ export const CAR_SPEED_MAX = 200;
 export const PED_RADIUS = 11;
 export const PED_SPEED = 55;
 
-// Puddle
-export const PUDDLE_COUNT = 4;
+// Puddle constant removed
 
 // Effects
 export const SHAKE_INTENSITY = 6;

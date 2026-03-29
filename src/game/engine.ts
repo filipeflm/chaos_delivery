@@ -1,6 +1,6 @@
 import {
   type GameState, type Player, type Package, type Zone, type CarDirection,
-  type Pedestrian, type Puddle, type Effects, type InputState, type ReactiveGameState,
+  type Pedestrian, type Effects, type InputState, type ReactiveGameState,
 } from './types';
 import {
   VIRTUAL_W, VIRTUAL_H, TILE, ROAD_COLS, ROAD_ROWS,
@@ -9,10 +9,11 @@ import {
   SCORE_BASE_DELIVERY, SCORE_TIME_BONUS_MAX, SCORE_COMBO_MULTIPLIER,
   CAR_W, CAR_H, CAR_SPEED_MIN, CAR_SPEED_MAX,
   PED_SPEED,
-  PUDDLE_COUNT, SHAKE_INTENSITY, PARTICLE_COUNT, FLOAT_TEXT_DURATION,
+  SHAKE_INTENSITY, PARTICLE_COUNT, FLOAT_TEXT_DURATION,
   DIFFICULTY_STAGES,
 } from './constants';
-import { isRoadAt, randomRoadPos, getIntersections, getTileAt, TILE_PUDDLE } from './cityMap';
+import { isRoadAt, getIntersections } from './cityMap';
+import { audioManager } from './audio';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -128,15 +129,6 @@ function makePedestrians(count: number): Pedestrian[] {
   return peds;
 }
 
-function makePuddles(): Puddle[] {
-  const puddles: Puddle[] = [];
-  for (let i = 0; i < PUDDLE_COUNT; i++) {
-    const pos = randomRoadPos(rng);
-    puddles.push({ x: pos.x, y: pos.y, radius: rngRange(20, 35), animTimer: rng() * Math.PI * 2 });
-  }
-  return puddles;
-}
-
 function makeEffects(): Effects {
   return {
     particles: [], floatTexts: [],
@@ -239,10 +231,8 @@ function updatePlayer(state: GameState, input: InputState, dt: number): void {
   const mag = Math.sqrt(ix * ix + iy * iy);
   if (mag > 1) { ix /= mag; iy /= mag; }
 
-  // Check if on puddle
-  const onPuddle = getTileAt(p.x, p.y) === TILE_PUDDLE;
-  const friction = onPuddle ? 0.15 : 10;
-  const maxSpeed = (p.isCarrying ? PLAYER_SPEED_CARRY : PLAYER_SPEED) * (onPuddle ? 0.6 : 1);
+  const friction = 10;
+  const maxSpeed = p.isCarrying ? PLAYER_SPEED_CARRY : PLAYER_SPEED;
 
   p.vx += (ix * maxSpeed - p.vx) * Math.min(friction * dt, 1);
   p.vy += (iy * maxSpeed - p.vy) * Math.min(friction * dt, 1);
@@ -333,7 +323,7 @@ function updateCars(state: GameState, dt: number): void {
 
     // Check honk near player
     const d = dist(car.x, car.y, state.player.x, state.player.y);
-    if (d < 80 && !car.honking) { car.honking = true; car.honkTimer = 0.5; }
+    if (d < 80 && !car.honking) { car.honking = true; car.honkTimer = 0.5; audioManager.honk(); }
     if (car.honkTimer > 0) car.honkTimer -= dt;
     if (car.honkTimer <= 0) car.honking = false;
 
@@ -430,6 +420,10 @@ function hitPlayer(state: GameState): void {
 
   if (p.lives <= 0) {
     state.phase = 'gameover';
+    audioManager.gameOver();
+    audioManager.stopMusic();
+  } else {
+    audioManager.hit();
   }
 }
 
@@ -448,6 +442,7 @@ function checkPickupDelivery(state: GameState, input: InputState): void {
       state.pkg.groundTimer = 0;
       addFloatText(state.effects, p.x, p.y - 40, 'Got it!', '#22c55e');
       addParticleBurst(state.effects, state.pickupZone.x, state.pickupZone.y, '#22c55e', 8);
+      audioManager.pickup();
       return;
     }
     // Pick up dropped package from ground
@@ -457,6 +452,7 @@ function checkPickupDelivery(state: GameState, input: InputState): void {
       state.pkg.vx = 0; state.pkg.vy = 0;
       state.pkg.rotVel = 0;
       addFloatText(state.effects, p.x, p.y - 40, 'Got it!', '#22c55e');
+      audioManager.pickup();
     }
     return;
   }
@@ -496,6 +492,9 @@ function deliverPackage(state: GameState): void {
   addParticleBurst(state.effects, state.deliveryZone.x, state.deliveryZone.y, '#fbbf24', 20);
   triggerShake(state.effects, 3);
   state.effects.deliveryFlash = 1.0;
+
+  audioManager.deliver();
+  if (state.combo > 1) audioManager.combo(state.combo);
 
   // New zones and reset delivery timer using current stage limit
   const { pickup, delivery } = makeZones({ x: state.deliveryZone.x, y: state.deliveryZone.y });
@@ -547,11 +546,6 @@ function updateEffects(state: GameState, dt: number): void {
   // Zone pulse timers
   state.pickupZone.pulseTimer += dt * 2.5;
   state.deliveryZone.pulseTimer += dt * 2.5;
-
-  // Puddle animation
-  for (const puddle of state.puddles) {
-    puddle.animTimer += dt;
-  }
 }
 
 function updateDeliveryTimer(state: GameState, dt: number): void {
@@ -566,6 +560,10 @@ function updateDeliveryTimer(state: GameState, dt: number): void {
     state.player.lives = Math.max(0, state.player.lives - 1);
     if (state.player.lives <= 0) {
       state.phase = 'gameover';
+      audioManager.gameOver();
+      audioManager.stopMusic();
+    } else {
+      audioManager.hit();
     }
   }
 }
@@ -589,6 +587,8 @@ function updateDifficultyStage(state: GameState, lang: string): void {
     triggerShake(state.effects, SHAKE_INTENSITY * 1.8);
     addParticleBurst(state.effects, VIRTUAL_W / 2, VIRTUAL_H / 2, stage.color, 20);
     state.effects.deliveryFlash = 0.6;
+    audioManager.stageUp();
+    audioManager.setMusicIntensity(newStage);
 
     // Spawn extra pedestrians for this stage
     const targetPeds = stage.pedCount;
@@ -622,7 +622,6 @@ function createInitialState(): GameState {
     deliveryZone: delivery,
     cars: [],
     pedestrians: makePedestrians(stage0.pedCount),
-    puddles: makePuddles(),
     effects: makeEffects(),
     score: 0,
     combo: 0,
@@ -674,6 +673,9 @@ export class GameEngine {
 
   restart(): void {
     this.state = createInitialState();
+    audioManager.stopMusic();
+    audioManager.startMusic();
+    audioManager.setMusicIntensity(0);
     this.notifyReactive();
   }
 
@@ -717,10 +719,15 @@ export class GameEngine {
     updateDeliveryTimer(s, cdt);
     updateEffects(s, cdt);
 
+    // Audio tick — footsteps
+    const moving = Math.sqrt(s.player.vx ** 2 + s.player.vy ** 2) > 20;
+    audioManager.tick(cdt, moving);
+
     // ── Wind / chaos events (interval comes from stage) ───────────────────
     s.chaosEventTimer -= cdt;
     if (s.chaosEventTimer <= 0 && s.activeChaosEvent === null) {
       s.activeChaosEvent = 'wind';
+      audioManager.chaos();
       const windStage = DIFFICULTY_STAGES[s.currentStageIdx];
       s.chaosEventTimer = rngRange(windStage.windInterval * 0.7, windStage.windInterval * 1.3);
 

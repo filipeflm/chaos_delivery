@@ -1,6 +1,8 @@
 import { useLanguage } from '../../i18n/useLanguage';
 import type { ReactiveGameState } from '../../game/types';
 import { DIFFICULTY_STAGES } from '../../game/constants';
+import { audioManager } from '../../game/audio';
+import { useState } from 'react';
 
 interface HUDProps {
   state: ReactiveGameState;
@@ -17,6 +19,12 @@ function formatTime(seconds: number): string {
 export default function HUD({ state, onPause, isMobile }: HUDProps) {
   const { t, lang } = useLanguage();
   const { score, lives, deliveries, deliveryTimer, combo, timeElapsed, currentStageIdx, nearPickup, nearDelivery } = state;
+  const [muted, setMuted] = useState(false);
+
+  function handleMute() {
+    const newMuted = audioManager.toggle();
+    setMuted(newMuted);
+  }
 
   const stage = DIFFICULTY_STAGES[currentStageIdx];
   const nextStage = DIFFICULTY_STAGES[currentStageIdx + 1];
@@ -63,6 +71,9 @@ export default function HUD({ state, onPause, isMobile }: HUDProps) {
         </div>
 
         <button className="hud-pause-btn" onClick={onPause} aria-label="Pause">⏸</button>
+        <button className="hud-mute-btn" onClick={handleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
+          {muted ? '🔇' : '🔊'}
+        </button>
       </div>
 
       {/* Delivery timer bar */}
