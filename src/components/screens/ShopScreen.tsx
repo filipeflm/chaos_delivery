@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useLanguage } from '../../i18n/useLanguage';
 import type { TrophyData } from '../../game/skins';
-import { SKINS, buySkin, setActiveSkin, saveTrophyData } from '../../game/skins';
+import { SKINS, getSkin, buySkin, setActiveSkin, saveTrophyData } from '../../game/skins';
+import { SkinPreviewCanvas } from '../ui/SkinPreviewCanvas';
 
 interface ShopProps {
   trophyData: TrophyData;
@@ -11,28 +12,51 @@ interface ShopProps {
 
 export default function ShopScreen({ trophyData, onUpdate, onClose }: ShopProps) {
   const { t, lang } = useLanguage();
-  const [confirmSkin, setConfirmSkin] = useState<string | null>(null);
+  const [selectedId, setSelectedId]     = useState(trophyData.activeSkin);
+  const [confirmSkin, setConfirmSkin]   = useState<string | null>(null);
+  const [flashKey, setFlashKey]         = useState(0);   // bumped to replay CSS anim
+  const [flashMsg, setFlashMsg]         = useState('');  // '' = hidden
 
-  function handleBuy(skinId: string) {
-    if (confirmSkin !== skinId) { setConfirmSkin(skinId); return; }
-    const updated = buySkin(trophyData, skinId);
+  const featured  = getSkin(selectedId);
+  const owned     = trophyData.unlockedSkins.includes(selectedId);
+  const active    = trophyData.activeSkin === selectedId;
+  const canAfford = trophyData.trophies >= featured.cost;
+  const isConfirm = confirmSkin === selectedId;
+
+  function handleSelect(id: string) {
+    setSelectedId(id);
+    setConfirmSkin(null);
+  }
+
+  function handleBuy() {
+    if (!isConfirm) { setConfirmSkin(selectedId); return; }
+    const updated = buySkin(trophyData, selectedId);
     if (updated) {
       saveTrophyData(updated);
       onUpdate(updated);
+      triggerEquipFlash(lang === 'pt' ? '🎉 DESBLOQUEADO!' : '🎉 UNLOCKED!');
     }
     setConfirmSkin(null);
   }
 
-  function handleEquip(skinId: string) {
-    const updated = setActiveSkin(trophyData, skinId);
+  function handleEquip() {
+    const updated = setActiveSkin(trophyData, selectedId);
     saveTrophyData(updated);
     onUpdate(updated);
+    triggerEquipFlash(lang === 'pt' ? '✅ EQUIPADO!' : '✅ EQUIPPED!');
+  }
+
+  function triggerEquipFlash(msg: string) {
+    setFlashMsg(msg);
+    setFlashKey(k => k + 1);
+    setTimeout(() => setFlashMsg(''), 1300);
   }
 
   return (
     <div className="shop-screen">
       <div className="shop-card">
-        {/* Header */}
+
+        {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="shop-header">
           <button className="shop-back-btn" onClick={onClose}>← {t.back}</button>
           <h2 className="shop-title">🛒 {t.shop}</h2>
@@ -42,7 +66,7 @@ export default function ShopScreen({ trophyData, onUpdate, onClose }: ShopProps)
           </div>
         </div>
 
-        {/* Stats bar */}
+        {/* ── Stats ──────────────────────────────────────────────────── */}
         <div className="shop-stats">
           <div className="ss-item">
             <span>🏆</span>
@@ -58,54 +82,94 @@ export default function ShopScreen({ trophyData, onUpdate, onClose }: ShopProps)
           </div>
         </div>
 
-        {/* Skin grid */}
-        <div className="skin-grid">
+        {/* ── Featured preview ───────────────────────────────────────── */}
+        <div
+          className={`shop-featured${active ? ' shop-featured-active' : ''}`}
+          style={{ '--featured-color': featured.glowColor } as React.CSSProperties}
+        >
+          {/* Animated canvas preview */}
+          <div className="shop-featured-canvas">
+            <SkinPreviewCanvas skin={featured} size={120} />
+            {/* Equip flash overlay */}
+            {flashMsg && (
+              <div key={flashKey} className="shop-equip-flash">
+                {flashMsg}
+              </div>
+            )}
+          </div>
+
+          {/* Info */}
+          <div className="shop-featured-info">
+            <div className="shop-featured-emoji">{featured.emoji}</div>
+            <div
+              className="shop-featured-name"
+              style={{ color: featured.glowColor }}
+            >
+              {lang === 'pt' ? featured.namePt : featured.nameEn}
+            </div>
+            <div className="shop-featured-desc">
+              "{lang === 'pt' ? featured.descPt : featured.descEn}"
+            </div>
+
+            {/* Action button */}
+            <div className="shop-featured-action">
+              {active ? (
+                <div className="shop-badge-equipped">✅ {t.equipped}</div>
+              ) : owned ? (
+                <button className="shop-action-btn shop-btn-equip" onClick={handleEquip}>
+                  👕 {t.equip}
+                </button>
+              ) : (
+                <button
+                  className={`shop-action-btn ${
+                    isConfirm ? 'shop-btn-confirm'
+                    : canAfford ? 'shop-btn-buy'
+                    : 'shop-btn-locked'
+                  }`}
+                  onClick={canAfford ? handleBuy : undefined}
+                  disabled={!canAfford}
+                  onBlur={() => setConfirmSkin(null)}
+                >
+                  {isConfirm
+                    ? `✓ ${t.confirm}?`
+                    : <><span>🏅 {featured.cost}</span> <span>{lang === 'pt' ? 'Comprar' : 'Buy'}</span></>
+                  }
+                </button>
+              )}
+              {!canAfford && !owned && (
+                <div className="shop-afford-hint">
+                  🏅 {featured.cost - trophyData.trophies} {lang === 'pt' ? 'ainda faltam' : 'more needed'}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Skin selector grid ─────────────────────────────────────── */}
+        <div className="shop-skin-grid">
           {SKINS.map(skin => {
-            const owned = trophyData.unlockedSkins.includes(skin.id);
-            const active = trophyData.activeSkin === skin.id;
-            const canAfford = trophyData.trophies >= skin.cost;
-            const isConfirming = confirmSkin === skin.id;
+            const isOwned  = trophyData.unlockedSkins.includes(skin.id);
+            const isActive = trophyData.activeSkin === skin.id;
+            const isSelected = selectedId === skin.id;
+            const affordable = trophyData.trophies >= skin.cost;
 
             return (
-              <div
+              <button
                 key={skin.id}
-                className={`skin-card ${active ? 'skin-active' : ''} ${owned ? 'skin-owned' : ''}`}
-                style={{ '--skin-color': skin.bodyColor, '--skin-glow': skin.glowColor } as React.CSSProperties}
+                className={`shop-skin-thumb${isSelected ? ' thumb-selected' : ''}${isActive ? ' thumb-active' : ''}${!isOwned ? ' thumb-locked' : ''}`}
+                style={{ '--thumb-color': skin.glowColor } as React.CSSProperties}
+                onClick={() => handleSelect(skin.id)}
+                title={lang === 'pt' ? skin.namePt : skin.nameEn}
               >
-                {/* Mini character preview */}
-                <div className="skin-preview">
-                  <div className="sp-body" style={{ background: skin.bodyColor }}>
-                    <div className="sp-head" style={{ background: skin.headColor }}>
-                      <div className="sp-cap" style={{ background: skin.capColor }} />
-                    </div>
-                  </div>
-                  <div className="sp-emoji">{skin.emoji}</div>
-                </div>
-
-                <div className="skin-info">
-                  <span className="skin-name">{lang === 'pt' ? skin.namePt : skin.nameEn}</span>
-                  <span className="skin-desc">{lang === 'pt' ? skin.descPt : skin.descEn}</span>
-                </div>
-
-                {active ? (
-                  <div className="skin-equipped-badge">✅ {t.equipped}</div>
-                ) : owned ? (
-                  <button className="skin-btn skin-btn-equip" onClick={() => handleEquip(skin.id)}>
-                    {t.equip}
-                  </button>
-                ) : (
-                  <button
-                    className={`skin-btn ${isConfirming ? 'skin-btn-confirm' : canAfford ? 'skin-btn-buy' : 'skin-btn-locked'}`}
-                    onClick={() => canAfford && handleBuy(skin.id)}
-                    disabled={!canAfford}
-                    onBlur={() => setConfirmSkin(null)}
-                  >
-                    {isConfirming
-                      ? `✓ ${t.confirm}?`
-                      : <>🏅 {skin.cost}</>}
-                  </button>
+                <SkinPreviewCanvas skin={skin} size={60} />
+                <span className="thumb-emoji">{skin.emoji}</span>
+                {isActive && <span className="thumb-badge-active">✅</span>}
+                {!isOwned && (
+                  <span className={`thumb-cost${affordable ? ' thumb-affordable' : ''}`}>
+                    🏅{skin.cost}
+                  </span>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>

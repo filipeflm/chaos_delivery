@@ -874,6 +874,181 @@ html, body {
   to   { transform: scale(1);   opacity: 1; }
 }
 
+/* ─── Level-up banner ──────────────────────────────────────────────────────── */
+.levelup-banner {
+  position: absolute;
+  top: 28%;
+  left: 50%;
+  z-index: 50;
+  pointer-events: none;
+  text-align: center;
+  white-space: nowrap;
+  animation: levelupFloat 2.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes levelupFloat {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.4) translateY(-24px); }
+  14%  { opacity: 1; transform: translateX(-50%) scale(1.06) translateY(4px); }
+  22%  { transform: translateX(-50%) scale(1.0) translateY(0); }
+  72%  { opacity: 1; transform: translateX(-50%) scale(1.0) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.92) translateY(-16px); }
+}
+
+.levelup-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  opacity: 0.14;
+}
+
+.levelup-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(8, 12, 28, 0.93);
+  border-radius: 20px;
+  padding: 16px 40px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 12px 48px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.levelup-eyebrow {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 700;
+}
+
+.levelup-stage-name {
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  line-height: 1.05;
+  animation: levelupNamePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.12s both;
+}
+
+@keyframes levelupNamePop {
+  0%   { transform: scale(0.55); opacity: 0; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+/* ─── Segmented stage progress bar ─────────────────────────────────────────── */
+.stage-track-section {
+  background: rgba(15, 23, 42, 0.88);
+  border-bottom: 1px solid var(--border);
+}
+
+.stage-track-bar {
+  display: flex;
+  height: 8px;
+  gap: 2px;
+  padding: 5px 14px 0;
+}
+
+.stage-seg {
+  position: relative;
+  height: 100%;
+  min-width: 0;
+  border-radius: 3px;
+  overflow: visible;
+  background: rgba(255, 255, 255, 0.06);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.stage-seg-fill {
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  background: var(--c);
+  border-radius: 3px;
+  transition: width 0.4s linear;
+  overflow: hidden;
+}
+
+/* Shimmering right edge on the active segment's fill */
+.stage-seg-fill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: rgba(255, 255, 255, 0.55);
+  filter: blur(2px);
+}
+
+/* Active segment: taller + glow */
+.seg-active {
+  transform: scaleY(1.5);
+  transform-origin: center bottom;
+  box-shadow: 0 0 8px var(--c), 0 0 18px var(--c);
+  z-index: 1;
+}
+
+/* Completed segments: fully filled but dimmer */
+.seg-done .stage-seg-fill {
+  opacity: 0.55;
+}
+.seg-done .stage-seg-fill::after { display: none; }
+
+/* Future segments: very dim placeholder */
+.seg-future {
+  opacity: 0.35;
+}
+.seg-future .stage-seg-fill::after { display: none; }
+
+/* Pulsing glow edge marker — shows current position */
+.stage-seg-edge {
+  display: none; /* handled by ::after on fill */
+}
+
+/* Info line */
+.stage-info-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px 6px;
+  font-size: 11px;
+}
+
+.stage-name-now {
+  font-weight: 900;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stage-level-pip {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.stage-deliveries-count {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.stage-next-v2 {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.stage-next-v2 strong {
+  font-weight: 900;
+}
+
 /* ─── Pointer-events: overlays inside .game-overlay need pointer-events ───── */
 .overlay-screen,
 .gameover-screen,
@@ -948,5 +1123,241 @@ html, body {
     will-change: contents;
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
+  }
+}
+
+/* ─── Shop redesign ─────────────────────────────────────────────────────────── */
+
+/* Featured preview card */
+.shop-featured {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 18px 20px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.shop-featured-active {
+  border-color: var(--featured-color, var(--accent));
+  box-shadow: 0 0 28px color-mix(in srgb, var(--featured-color, var(--accent)) 35%, transparent);
+}
+
+/* Canvas wrapper — clips and centres the preview */
+.shop-featured-canvas {
+  position: relative;
+  flex-shrink: 0;
+  width: 120px;
+  height: 120px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Equip flash overlay inside canvas wrapper */
+.shop-equip-flash {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 900;
+  color: #4ade80;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 14px;
+  animation: equipFlashAnim 1.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  pointer-events: none;
+  z-index: 5;
+  text-align: center;
+  padding: 4px;
+}
+
+@keyframes equipFlashAnim {
+  0%   { opacity: 0; transform: scale(0.7); }
+  20%  { opacity: 1; transform: scale(1.05); }
+  55%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05) translateY(-8px); }
+}
+
+/* Info column */
+.shop-featured-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.shop-featured-emoji {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.shop-featured-name {
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.3px;
+  line-height: 1.1;
+}
+
+.shop-featured-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.shop-featured-action {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.shop-action-btn {
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.shop-btn-equip {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1.5px solid rgba(59, 130, 246, 0.35);
+}
+.shop-btn-equip:hover { background: rgba(59, 130, 246, 0.35); transform: translateY(-1px); }
+
+.shop-btn-buy {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  border: 1.5px solid rgba(251, 191, 36, 0.45);
+}
+.shop-btn-buy:hover { background: rgba(251, 191, 36, 0.35); transform: translateY(-1px); }
+
+.shop-btn-confirm {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1.5px solid rgba(34, 197, 94, 0.4);
+  animation: pulse 0.7s infinite;
+}
+
+.shop-btn-locked {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: not-allowed;
+}
+
+.shop-badge-equipped {
+  font-size: 13px;
+  font-weight: 800;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1.5px solid rgba(74, 222, 128, 0.3);
+  border-radius: 10px;
+  padding: 8px 14px;
+  text-align: center;
+}
+
+.shop-afford-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  opacity: 0.75;
+}
+
+/* Skin selector grid (3×2) */
+.shop-skin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* Individual skin thumbnail */
+.shop-skin-thumb {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 8px 4px 4px;
+  cursor: pointer;
+  transition: all 0.18s;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.shop-skin-thumb:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.thumb-selected {
+  border-color: var(--thumb-color, var(--accent));
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--thumb-color, var(--accent)) 40%, transparent);
+}
+
+.thumb-active {
+  background: rgba(74, 222, 128, 0.07);
+}
+
+.thumb-locked {
+  opacity: 0.65;
+}
+
+.thumb-emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* "✅" badge for active skin */
+.thumb-badge-active {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  font-size: 11px;
+}
+
+/* Cost pill for unowned skins */
+.thumb-cost {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
+.thumb-affordable {
+  color: #fbbf24;
+}
+
+/* Responsive: on narrow screens shrink featured layout */
+@media (max-width: 360px) {
+  .shop-featured {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .shop-featured-info {
+    align-items: center;
   }
 }
